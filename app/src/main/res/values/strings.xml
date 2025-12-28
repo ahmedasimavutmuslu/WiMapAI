@@ -1,0 +1,33 @@
+<resources>
+    <string name="app_name" translatable="false">WiMap</string>
+    <string name="scan_wifi_button_text">Scan Wifi</string>
+    <string name="wifi_ssid_text">Wifi Name (SSID)</string>
+    <string name="wifi_bssid_text">MAC Address</string>
+
+    <string name="wifi_strength_text" translatable="false">-50 dB </string>
+    <string name="on_cooldown_text">On Cooldown</string>
+    <string name="location_name_hint">Enter location name (e.g, Desk)</string>
+    <string name="edit_coordinate_x_text">X Coordinate</string>
+    <string name="edit_coordinate_y_text">Y Coordinate</string>
+    <string name="export_heatmap_data">Export Heatmap Data</string>
+    <string name="save_point_heatmap">Save Point For Heatmap</string>
+    <string name="select_ap_for_heatmap_export">Select Network for Heatmap Export</string>
+    <string name="map_management_text">Map Management</string>
+    <string name="edit_map_name_text">New Map Name</string>
+    <string name="create_map_button_text">Create</string>
+    <string name="active_map_text">Active Map</string>
+    <string name="saved_points_detail_text">Saved Data Points:</string>
+    <string name="view_map_button_text">View</string>
+    <string name="generate_heatmap_button_text">Generate Heatmap</string>
+    <string name="heatmap_content_description">Heatmap will be displayed here</string>
+    <string name="wimap_login">WiMap Login Screen</string>
+    <string name="wimap_login_username_hint">Username</string>
+    <string name="wimap_login_password_hint">Password</string>
+    <string name="wimap_login_button_text">Login</string>
+
+
+
+
+
+
+</resources>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android ="http://schemas.android.com/apk/res/android"
+    xmlns:tools ="http://schemas.android.com/tools"
+    android:orientation ="vertical"
+    android:layout_width ="match_parent"
+    android:layout_height ="match_parent"
+    android:padding ="16dp"
+    tools:context =".MapDetailActivity">
+
+    <TextView
+        android:id = "@+id/text_map_name_detail"
+        android:layout_width ="match_parent"
+        android:layout_height ="wrap_content"
+        android:gravity= "center"
+        android:textSize ="20sp"
+        android:textStyle ="bold"
+        tools:text ="Living Room Heatmap"/>
+
+    <Button
+        android:id="@+id/button_generate_heatmap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/generate_heatmap_button_text" />
+
+    <com.example.wimap.HeatMapView
+        android:id="@+id/heatmap_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:background="#E0E0E0"
+        android:contentDescription="@string/heatmap_content_description" />
+
+
+</LinearLayout>
