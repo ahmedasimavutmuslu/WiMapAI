@@ -31,8 +31,8 @@ public interface FingerprintDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertReferencePoint(ReferencePoint referencePoint);
 
-    @Query("SELECT * FROM reference_point_table")
-    LiveData<List<ReferencePoint>> getAllReferencePoints();
+    @Query("SELECT * FROM reference_point_table WHERE mapId = :currentMapId")
+    LiveData<List<ReferencePoint>> getAllReferencePointsForMap(long currentMapId);
 
     @Query("DELETE FROM reference_point_table")
     void deleteAllReferencePoints();

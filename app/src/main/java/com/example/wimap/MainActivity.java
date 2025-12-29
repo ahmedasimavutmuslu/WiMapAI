@@ -20,6 +20,7 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.widget.*;
 import android.net.wifi.*;
@@ -196,14 +197,21 @@ public class MainActivity extends AppCompatActivity{
 
         buttonSaveReferencePoint.setOnClickListener(v -> saveReferencePoint());
 
-        fingerprintDao.getAllReferencePoints().observe(this, refPoints -> {
-            referencePoints.clear();
-            referencePoints.addAll(refPoints);
+        if (activeMap != null) {
+            fingerprintDao.getAllReferencePointsForMap(activeMap.id).observe(this, refPoints -> {
+                referencePoints.clear();
+                if (refPoints != null) {
+                    referencePoints.addAll(refPoints);
+                }
 
-            if(referencePoints.size() >= 3){
-                Toast.makeText(this, referencePoints.size() + " anchors loaded. Ready for positioning", Toast.LENGTH_SHORT).show();
-            }
-        });
+                if(referencePoints.size() >= 3){
+                    Toast.makeText(this, referencePoints.size() + " anchors loaded. Ready for positioning", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            Log.e("MainActivity", "activeMap is NULL. Skipping anchor loading.");
+
+        }
 
 
 
@@ -233,12 +241,15 @@ public class MainActivity extends AppCompatActivity{
                 activeMap = (MapSession) parent.getItemAtPosition(position);
                 // Now observe the fingerprints only for this specific map
                 observeFingerprintsForMap();
+
+                observeReferencePointsForMap();
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 activeMap = null;
                 activeFingerprints.clear();
+                referencePoints.clear();
 
             }
         });
@@ -296,7 +307,7 @@ public class MainActivity extends AppCompatActivity{
                     editRefY.setText("0");
                 }
             }
-            ReferencePoint newRefPoint = new ReferencePoint(bssid, ssid, x, y, rssi1m);
+            ReferencePoint newRefPoint = new ReferencePoint(activeMap.id,bssid, ssid, x, y, rssi1m);
 
             FingerprintRoomDatabase.databaseWriteExecutor.execute(() -> {
                 fingerprintDao.insertReferencePoint(newRefPoint);
@@ -311,35 +322,65 @@ public class MainActivity extends AppCompatActivity{
 
     // Calculates the users position using trilateration
     private Position calculatePositionWithTrilateration() {
+        Log.d("Positioning", "--- STARTING TRILATERATION ---");
+        Log.d("Positioning", "Database Anchors available: " + referencePoints.size());
+
         if (referencePoints.size() < 3){
-            // There is not enough reference points to trilaterate
+            Log.e("Positioning", "FAIL: Not enough anchors in DB (Need 3, have " + referencePoints.size() + ")");
             return null;
         }
 
         List<PointWithDistance> measurements = new ArrayList<>();
         for (ReferencePoint refPoint : referencePoints) {
+            // Use the NEW Case-Insensitive method here
             double rssi = getAverageRssiForBssid(refPoint.bssid);
+
             if (rssi != 0) {
+                // Log successful matches
                 double distance = calculateDistance(rssi, refPoint.measuredPowerAtOneMeter, 3.0);
+                Log.d("Positioning", "MATCH: " + refPoint.ssid + " | RSSI: " + rssi + " | Dist: " + distance);
                 measurements.add(new PointWithDistance(refPoint, distance));
+            } else {
+                // Log missing anchors
+                Log.w("Positioning", "MISSING: Could not find signal for anchor: " + refPoint.ssid + " (" + refPoint.bssid + ")");
             }
         }
 
-        if (measurements.size() < 3) return null;
+        Log.d("Positioning", "Valid measurements found: " + measurements.size());
 
-        // For simplicity, use the first 3 found measurements.
-        // A better app would choose the 3 with the strongest signals.
+        if (measurements.size() < 3) {
+            Log.e("Positioning", "FAIL: Found signals for only " + measurements.size() + " anchors. Need 3 visible.");
+            return null;
+        }
+
+        // Sort by signal strength (optional but recommended) or just take first 3
         PointWithDistance m1 = measurements.get(0);
         PointWithDistance m2 = measurements.get(1);
         PointWithDistance m3 = measurements.get(2);
 
-        return trilaterate(m1.point, m2.point, m3.point, m1.distance, m2.distance, m3.distance);
+        Log.d("Positioning", "Calculating using: " + m1.point.ssid + ", " + m2.point.ssid + ", " + m3.point.ssid);
+
+        Position result = trilaterate(m1.point, m2.point, m3.point, m1.distance, m2.distance, m3.distance);
+
+        if (result != null) {
+            Log.d("Positioning", "SUCCESS: Calculated Position (" + result.x + ", " + result.y + ")");
+        } else {
+            Log.e("Positioning", "FAIL: Trilateration math returned null (collinear points?)");
+        }
+
+        return result;
     }
 
     // Helper methods for trilateration
     private double getAverageRssiForBssid(String bssid) {
-        WifiNetwork network = networkMap.get(bssid);
-        return (network != null) ? network.getAverageSignalStrength() : 0;
+        // Iterate manually to find a match regardless of case
+        for (String scannedBssid : networkMap.keySet()) {
+            if (scannedBssid.equalsIgnoreCase(bssid)) {
+                WifiNetwork network = networkMap.get(scannedBssid);
+                return (network != null) ? network.getAverageSignalStrength() : 0;
+            }
+        }
+        return 0; // Not found
     }
 
     private double calculateDistance(double rssi, double measuredPowerAt1m, double pathLossExponent) {
@@ -830,6 +871,30 @@ public class MainActivity extends AppCompatActivity{
             fingerprintDao.getFingerprintsForMap(activeMap.id).observe(this, fingerprints -> {
                 activeFingerprints.clear();
                 activeFingerprints.addAll(fingerprints);
+            });
+        }
+    }
+
+    /**
+     * Observes the Reference Points (Anchors) for the current map
+     */
+    private void observeReferencePointsForMap() {
+        if (activeMap != null) {
+            // Remove old observers to prevent duplicates
+            fingerprintDao.getAllReferencePointsForMap(activeMap.id).removeObservers(this);
+
+            // Add new observer
+            fingerprintDao.getAllReferencePointsForMap(activeMap.id).observe(this, refPoints -> {
+                referencePoints.clear();
+                if(refPoints != null){
+                    referencePoints.addAll(refPoints);
+                }
+                Log.d("MainActivity", "Loaded " + referencePoints.size() + " anchors for map: " + activeMap.mapName);
+
+                // Optional: Show a toast if user is trying to scan but has no anchors
+                if(referencePoints.size() < 3){
+                    // Log warning: "Warning: Less than 3 anchors. Positioning will fail."
+                }
             });
         }
     }

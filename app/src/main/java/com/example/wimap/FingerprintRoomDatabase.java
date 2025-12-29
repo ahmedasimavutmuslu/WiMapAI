@@ -14,7 +14,7 @@ import androidx.room.TypeConverters;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Database(entities = {Fingerprint.class, MapSession.class, ReferencePoint.class}, version = 3, exportSchema = false)
+@Database(entities = {Fingerprint.class, MapSession.class, ReferencePoint.class}, version = 4, exportSchema = false)
 @TypeConverters(Fingerprint.RssiMapConverter.class)
 public abstract class FingerprintRoomDatabase extends RoomDatabase {
     public abstract FingerprintDao fingerprintDao();

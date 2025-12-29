@@ -62,7 +62,7 @@ public class MapDetailActivity extends AppCompatActivity{
         FingerprintRoomDatabase db = FingerprintRoomDatabase.getDatabase(this);
         fingerprintDao = db.fingerprintDao();
 
-        fingerprintDao.getAllReferencePoints().observe(this, refPoints -> {
+        fingerprintDao.getAllReferencePointsForMap(mapId).observe(this, refPoints -> {
             referencePoints.clear();
             referencePoints.addAll(refPoints);
             tryGenerateMap(userX, userY);
@@ -86,14 +86,35 @@ public class MapDetailActivity extends AppCompatActivity{
      * Helper method that checks if all required data is loaded before generating the heatmap.
      */
     private void tryGenerateMap(double userX, double userY) {
-        // Only proceed if BOTH the anchors AND the fingerprint data have been loaded.
-        if (!referencePoints.isEmpty() && !fingerprintList.isEmpty()) {
-            buttonGenerateHeatmap.setEnabled(true);
-            heatmapView.post(() -> {
-                List<String> anchorBssids = getAnchorBssids();
-                heatmapView.generateHeatmap(fingerprintList, anchorBssids, heatmapView.getWidth(), heatmapView.getHeight(), userX, userY);
-            });
+        Log.d("MapDebug", "Anchors: " + referencePoints.size() + ", Fingerprints: " + fingerprintList.size());
+        Log.d("MapDebug", "View Dimensions: " + heatmapView.getWidth() + "x" + heatmapView.getHeight());
+
+        if (referencePoints.isEmpty()) {
+            Log.w("MapDebug", "Skipping generation: No anchors found.");
+            return;
         }
+        if (fingerprintList.isEmpty()) {
+            Log.w("MapDebug", "Skipping generation: No fingerprints found.");
+            // Optional: Show a message to the user
+            // Toast.makeText(this, "Add fingerprints to view heatmap", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // FIX: Handle the case where the view isn't laid out yet (Width=0)
+        if (heatmapView.getWidth() == 0 || heatmapView.getHeight() == 0) {
+            Log.d("MapDebug", "View not measured yet, waiting for layout...");
+            heatmapView.postDelayed(() -> tryGenerateMap(userX, userY), 500); // Retry after 500ms
+            return;
+        }
+
+        buttonGenerateHeatmap.setEnabled(true);
+
+        // Proceed with generation
+        double testX = fingerprintList.get(0).x;
+        double testY = fingerprintList.get(0).y;
+
+        List<String> anchorBssids = getAnchorBssids();
+        heatmapView.generateHeatmap(fingerprintList, anchorBssids, heatmapView.getWidth(), heatmapView.getHeight(), userX, userY);
     }
 
     /**

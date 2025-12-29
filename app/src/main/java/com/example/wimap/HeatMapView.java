@@ -83,6 +83,8 @@ public class HeatMapView extends AppCompatImageView {
 
 
 
+
+
         for(Fingerprint point : points){
             if(point.x < minX) minX = point.x;
             if(point.x > maxX) maxX = point.x;
@@ -102,6 +104,12 @@ public class HeatMapView extends AppCompatImageView {
         maxX += paddingX;
         minY -= paddingY;
         maxY += paddingY;
+
+        double SCALE = 50.0;
+
+        // Move (0,0) to the center of the bitmap
+        double CENTER_X = width / 2.0;
+        double CENTER_Y = height / 2.0;
 
         // --- Optimization: Array Batching ---
         // Instead of bitmap.setPixel (slow), we write to an int array.
@@ -137,44 +145,70 @@ public class HeatMapView extends AppCompatImageView {
     }
 
     private void drawUserMarker(Bitmap bitmap, List<Fingerprint> points, int width, int height, double userX, double userY) {
+        // 1. Safety Check: If user position is invalid, don't draw anything
         if (userX == -1 || userY == -1) return;
 
-        // Recalculate bounds (copy-paste logic, ideally extract to a Bounds object)
+        // 2. Re-calculate the exact same boundaries used in the Heatmap
+        // (This ensures the dot aligns perfectly with the map)
         double minX = Double.MAX_VALUE; double maxX = -Double.MAX_VALUE;
         double minY = Double.MAX_VALUE; double maxY = -Double.MAX_VALUE;
+
         for(Fingerprint point : points){
             if(point.x < minX) minX = point.x;
             if(point.x > maxX) maxX = point.x;
             if(point.y < minY) minY = point.y;
             if(point.y > maxY) maxY = point.y;
         }
+
+        // Apply the same 10% padding
         double paddingX = (maxX - minX) * 0.1;
         double paddingY = (maxY - minY) * 0.1;
+
+        // Prevent division by zero if all points are in one spot
         if (paddingX == 0) paddingX = 5.0;
         if (paddingY == 0) paddingY = 5.0;
-        minX -= paddingX; maxX += paddingX; minY -= paddingY; maxY += paddingY;
+
+        minX -= paddingX;
+        maxX += paddingX;
+        minY -= paddingY;
+        maxY += paddingY;
 
         double mapWidth = maxX - minX;
         double mapHeight = maxY - minY;
 
+        // 3. Convert User's Real-World (x,y) to Screen Pixels (px,py)
         if (mapWidth > 0 && mapHeight > 0) {
+
+            // X: Standard linear mapping
             int userPx = (int) ((userX - minX) / mapWidth * width);
+
+            // Y: Inverted mapping (because screen Y grows downwards, but math Y grows upwards)
+            // This matches your heatmap generation logic: "maxY - ..."
             int userPy = (int) ((maxY - userY) / mapHeight * height);
 
             Canvas canvas = new Canvas(bitmap);
-            Paint markerPaint = new Paint();
-            markerPaint.setColor(Color.WHITE);
-            markerPaint.setStyle(Paint.Style.FILL);
-            markerPaint.setAntiAlias(true); // Smooth circle edges
 
+            // --- STYLE 1: The White Inner Dot ---
+            Paint markerPaint = new Paint();
+            markerPaint.setColor(Color.WHITE); // White color
+            markerPaint.setStyle(Paint.Style.FILL); // Solid fill
+            markerPaint.setAntiAlias(true); // Smooth edges
+
+            // --- STYLE 2: The Black Outline (To make it visible on light backgrounds) ---
             Paint outlinePaint = new Paint();
             outlinePaint.setColor(Color.BLACK);
-            outlinePaint.setStyle(Paint.Style.STROKE);
-            outlinePaint.setStrokeWidth(4f);
+            outlinePaint.setStyle(Paint.Style.STROKE); // Outline only
+            outlinePaint.setStrokeWidth(5f); // Thicker border
             outlinePaint.setAntiAlias(true);
 
-            canvas.drawCircle(userPx, userPy, 20, markerPaint);
-            canvas.drawCircle(userPx, userPy, 20, outlinePaint);
+            // 4. Draw the Dot
+            float radius = 25f; // Size of the dot (adjust as needed)
+
+            // Draw White Circle
+            canvas.drawCircle(userPx, userPy, radius, markerPaint);
+
+            // Draw Black Border
+            canvas.drawCircle(userPx, userPy, radius, outlinePaint);
         }
     }
 
